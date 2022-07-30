@@ -41,9 +41,6 @@ async def on_message(message):
             mydb.commit()
             ids.append(str(message.author.id))
             return
-        else:
-            return
-            
         if 'kihiv' in message.content:
             user1 = message.author.id
             #kihivtomb = [user1, message.author.name, str(232185184739524608), 'SpotHawk']
