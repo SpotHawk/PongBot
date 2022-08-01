@@ -48,6 +48,7 @@ print(adatok.dcid)
 print(adatok.pont)
 print(adatok.coin)
 print(adatok.dcnev[1])
+print(type(adatok))
 
 @client.event
 async def on_ready():
