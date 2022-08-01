@@ -7,21 +7,31 @@ load_dotenv()
 
 client = discord.Client()
 
-mydb = mysql.connector.connect(host=os.getenv('HOST'),user=os.getenv('DBU'),password=os.getenv('DBP'),database='PRx5iD5O8U')
+#adatbazis csatlakoztatasa
+mydb = mysql.connector.connect(host=os.getenv('HOST'),user=os.getenv('DBU'),password=os.getenv('DBP'),database=os.getenv('DBN'))
 mycursor=mydb.cursor()
 
-mycursor.execute('select users.dcid from users')
+#adatok lekerdezese,betoltese memoriaba
+mycursor.execute('select users.dcnev,users.dcid,users.pont,users.coin from users')
 
-ids=[]
+names,ids,points,coins=[],[],[],[]
 for item in mycursor:
-    ids.append(str(item).strip("('',)"))
+    names.append(item[0])
+    ids.append(item[1])
+    points.append(item[2])
+    coins.append(item[3])
 
-class KihivClass:
-    def __init__(self, authorName, authorId, kihivNev, kihivId):
-        self.authorName = authorName
-        self.authorId = authorId
-        self.kihivNev = kihivNev
-        self.kihivId = kihivId
+#userek felvetele
+class User:
+    def __init__(self, dcnev, dcid, pont, coin):
+        self.dcnev = dcnev
+        self.dcid = dcid
+        self.pont = pont
+        self.coin = coin
+
+Users=[]
+for i in range(len(names)):
+    Users.append(User(names[i],ids[i],points[i],coins[i]))
 
 @client.event
 async def on_ready():
@@ -32,23 +42,29 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    #ellenorzes h a user benne van-e a db-ban,ha nincs akkor hozzaadja
     if message.content.startswith('ping'):
+        un=message.author.name
         uid=str(message.author.id)
-        if uid not in ids:
+        if uid and un not in ids or names:
             sql = "INSERT INTO users (dcnev, dcid, pont, coin) VALUES (%s, %s, %s, %s)"
             val = (message.author.name, message.author.id, 0,0)
             mycursor.execute(sql, val)
             mydb.commit()
+            names.append(message.author.name)
             ids.append(str(message.author.id))
-            return
+            points.append(0)
+            coins.append(0)
+
+        #kihiv parancs
         if 'kihiv' in message.content:
-            user1 = message.author.id
-            #kihivtomb = [user1, message.author.name, str(232185184739524608), 'SpotHawk']
-            kihivott = KihivClass(message.author.id, message.author.name, 'SpotHawk', str(232185184739524608))
-            if kihivott.kihivNev in message.content:
-                await message.channel.send(f"<@{kihivott.kihivId}>")
-            print(message.author.display_name)
-        else:
-            await message.channel.send('Hello!')
-            
+            nev = message.content[11:]
+            if nev in Users[2].dcnev:
+                await message.channel.send(f'<@{message.author.id}> kihívott téged, <@{Users[1].dcid}>')
+
+        #match parancs
+        if 'match' in message.content:
+            await message.channel.send('Eredmeny')
+
+
 client.run(os.getenv('TOKEN'))
