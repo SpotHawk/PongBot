@@ -14,7 +14,7 @@ mycursor=mydb.cursor()
 #adatok lekerdezese,betoltese memoriaba
 mycursor.execute('select users.dcnev,users.dcid,users.pont,users.coin from users')
 
-names,ids,points,coins=[],[],[],[]
+names,ids,points,coins,dpname=[],[],[],[],[]
 for item in mycursor:
     names.append(item[0])
     ids.append(item[1])
@@ -59,8 +59,9 @@ async def on_message(message):
         #kihiv parancs
         if 'kihiv' in message.content:
             nev = message.content[11:]
-            if nev in Users[2].dcnev:
-                await message.channel.send(f'<@{message.author.id}> kihívott téged, <@{Users[1].dcid}>')
+            if nev in names:
+                i=names.index(nev)
+                await message.channel.send(f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
 
         #match parancs
         if 'match' in message.content:
