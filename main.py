@@ -2,7 +2,6 @@ import discord
 from discord.ui import Button,View
 import os
 from dotenv import load_dotenv
-from discord.ext import commands
 import mysql.connector
 
 load_dotenv()
@@ -74,10 +73,8 @@ async def on_message(message):
         if 'kihiv' in message.content:
             nev = message.content[11:]
             if nev in names:
-                i = names.index(nev)  # idx
-                # await message.channel.send(f'<@{message.author.id}> kihívott téged, <@{Users[idx].dcid}>')
-                embed = discord.Embed(title="Kihívtak!", color=0x020053,
-                                      description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
+                i = names.index(nev)  #memoriaban levo userek szama (idx - Zolinak ;) )
+                embed = discord.Embed(title="Kihívtak!", color=0x020053,description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
                 embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
                 
                 acceptb = Button(label="Accept", style=discord.ButtonStyle.green, custom_id="acceptb")
@@ -116,9 +113,7 @@ async def on_message(message):
                 userDM = await client.fetch_user(Users[i].dcid)
                 dcID1 = message.author.id
                 dcID2 = Users[i].dcid
-                #dcAuthor1 = message.author
                 await message.reply('Kihívás elküldve!')
-                #print(message.author)
                 await userDM.send(embed=embed, view=view)
 
         # match parancs
