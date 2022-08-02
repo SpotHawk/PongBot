@@ -1,14 +1,13 @@
 import discord
-from discord.ui import Button,View
+from discord.ui import Button, View
 import os
 from dotenv import load_dotenv
-from discord.ext import commands
 import mysql.connector
 
 load_dotenv()
 
-#client = discord.Client() only with discord.py
-#pycord-hoz
+# client = discord.Client() only with discord.py
+# pycord-hoz
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -29,6 +28,7 @@ for item in mycursor:
     ids.append(item[1])
     points.append(item[2])
     coins.append(item[3])
+
 
 # userek felvetele
 class User:
@@ -55,10 +55,9 @@ async def on_message(message):
         return
     global dcID1, dcID2, dcAuthor1, dcAuthor2
 
-
-    #ellenorzes h a user benne van-e a db-ban,ha nincs akkor hozzaadja,es a memoriaba is betolti
+    # ellenorzes h a user benne van-e a db-ban,ha nincs akkor hozzaadja,es a memoriaba is betolti
     if message.content.startswith('ping'):
-        uid=str(message.author.id)
+        uid = str(message.author.id)
         if uid not in ids:
             sql = "INSERT INTO users (dcnev, dcid, pont, coin) VALUES (%s, %s, %s, %s)"
             val = (message.author.name, message.author.id, 0, 0)
@@ -68,18 +67,16 @@ async def on_message(message):
             ids.append(str(message.author.id))
             points.append(0)
             coins.append(0)
-            Users.append(User(names[len(names)-1],ids[len(names)-1],points[len(names)-1],coins[len(names)-1]))
+            Users.append(User(names[len(names) - 1], ids[len(names) - 1], points[len(names) - 1], coins[len(names) - 1]))
 
         # kihiv parancs
         if 'kihiv' in message.content:
             nev = message.content[11:]
             if nev in names:
-                i = names.index(nev)  # idx
-                # await message.channel.send(f'<@{message.author.id}> kihívott téged, <@{Users[idx].dcid}>')
-                embed = discord.Embed(title="Kihívtak!", color=0x020053,
-                                      description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
+                i = names.index(nev)  # memoriaban levo userek szama (idx - Zolinak ;) )
+                embed = discord.Embed(title="Kihívtak!", color=0x020053, description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
                 embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
-                
+
                 acceptb = Button(label="Accept", style=discord.ButtonStyle.green, custom_id="acceptb")
                 declineb = Button(label="Decline", style=discord.ButtonStyle.red, custom_id="declineb")
 
@@ -90,10 +87,10 @@ async def on_message(message):
                     await interaction.response.edit_message(view=view)
                     userDM = await client.fetch_user(dcID1)
                     embed = discord.Embed(title='Kihívás elfogadva!', color=0x025300,
-                              description=f'<@{dcID2}> elfogadta a kihívást!')
+                                          description=f'<@{dcID2}> elfogadta a kihívást!')
                     embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
                     await userDM.send(embed=embed)
-                    
+
                 async def decline(interaction):
                     declineb.disabled = True
                     declineb.label = "Declined"
@@ -101,24 +98,22 @@ async def on_message(message):
                     await interaction.response.edit_message(view=view)
                     userDM = await client.fetch_user(dcID1)
                     embed = discord.Embed(title='Kihívás elutasítva!', color=0x530200,
-                              description=f'<@{dcID2}> nem fogadta el a kihívást!')
+                                          description=f'<@{dcID2}> nem fogadta el a kihívást!')
                     embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
                     await userDM.send(embed=embed)
 
-                acceptb.callback=accept
-                declineb.callback=decline
+                acceptb.callback = accept
+                declineb.callback = decline
 
-                view=View()
+                view = View()
                 view.add_item(acceptb)
                 view.add_item(declineb)
-                
+
                 # await message.channel.send(embed=embed)
                 userDM = await client.fetch_user(Users[i].dcid)
                 dcID1 = message.author.id
                 dcID2 = Users[i].dcid
-                #dcAuthor1 = message.author
                 await message.reply('Kihívás elküldve!')
-                #print(message.author)
                 await userDM.send(embed=embed, view=view)
 
         # match parancs
