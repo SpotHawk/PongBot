@@ -23,12 +23,12 @@ mycursor = mydb.cursor()
 mycursor.execute('select users.dcnev,users.dcid,users.pont,users.coin from users')
 
 names, ids, points, coins = [], [], [], []
+
 for item in mycursor:
     names.append(item[0])
     ids.append(item[1])
     points.append(item[2])
     coins.append(item[3])
-
 
 # userek felvetele
 class User:
@@ -38,16 +38,13 @@ class User:
         self.pont = pont
         self.coin = coin
 
-
 Users = []
 for i in range(len(names)):
     Users.append(User(names[i], ids[i], points[i], coins[i]))
 
-
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
-
 
 @client.event
 async def on_message(message):
@@ -66,6 +63,7 @@ async def on_message(message):
             mycursor.execute(sql, val)
             mydb.commit()
             names.append(message.author.name)
+
             ids.append(message.author.id)
             points.append(0)
             coins.append(0)
@@ -79,7 +77,7 @@ async def on_message(message):
                 embed = discord.Embed(title="Kihívtak!", color=0x020053, description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
                 dcID2 = Users[i].dcid
                 embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
-
+                
                 acceptb = Button(label="Accept", style=discord.ButtonStyle.green, custom_id="acceptb")
                 declineb = Button(label="Decline", style=discord.ButtonStyle.red, custom_id="declineb")
 
@@ -88,40 +86,41 @@ async def on_message(message):
                     acceptb.label = "Accepted"
                     view.remove_item(declineb)
 
+                    # Thread létrehozása
                     channel = client.get_channel(1004010609509150771)  # channel id here
-                    message = await channel.send(f'<@{dcID1}> VS <@{dcID2}>')
-                    await message.create_thread(name="Ping-Pong", auto_archive_duration=60)
-                    tid = message.thread.id
+                    message = await channel.send(f'<@{dcID1}> VS <@{dcID2}>') # Thread start message
+                    await message.create_thread(name="Ping-Pong", auto_archive_duration=60) # Thread létrehozása
+                    tid = message.thread.id # Thread ID
 
                     await interaction.response.edit_message(view=view)
-                    userDM = await client.fetch_user(dcID1)
-                    authorNev = await client.fetch_user(dcID2)
+                    userDM = await client.fetch_user(dcID1) # user konvertálás (címzett)
+                    authorNev = await client.fetch_user(dcID2) # user konvertálás (author)
                     embed = discord.Embed(title='Kihívás elfogadva!', color=0x025300,
                                           description=f'<@{dcID2}> elfogadta a kihívást!')
                     embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
 
-                    guild_id = guild.id
+                    guild_id = guild.id # server ID lekérdezés
                     server = client.get_guild(guild_id)
                     role_id = 1004009190215405619  # Kihívott rang ID
-                    role = discord.utils.get(server.roles, id=role_id)
-                    member = await guild.fetch_member(dcID2)
-                    await member.add_roles(role)
+                    role = discord.utils.get(server.roles, id=role_id) # server role lekérdezés
+                    member = await guild.fetch_member(dcID2) # member konvertálás
+                    await member.add_roles(role) # role kiosztása
                     await userDM.send(embed=embed)
-
+                    
                 async def decline(interaction):
                     declineb.disabled = True
                     declineb.label = "Declined"
                     view.remove_item(acceptb)
                     await interaction.response.edit_message(view=view)
                     userDM = await client.fetch_user(dcID1)
-                    authorNev = await client.fetch_user(dcID2)
+                    
+                    authorNev = await client.fetch_user(dcID2) # user konvertálás (author)
                     embed = discord.Embed(title='Kihívás elutasítva!', color=0x530200, description=f'<@{dcID2}> nem fogadta el a kihívást!')
                     embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
                     server = client.get_guild(guild_id)
                     role_id = 1004010127520706590  # Kihívó ID
                     role2 = discord.utils.get(server.roles, id=role_id)
-                    await message.author.remove_roles(role2)
-
+                    await message.author.remove_roles(role2) # leveszi a kihívó role-t
                     await userDM.send(embed=embed)
 
                 acceptb.callback = accept
@@ -138,32 +137,13 @@ async def on_message(message):
                 guild_id = guild.id
                 role_id = 1004010127520706590  # Kihívó ID
                 role = guild.get_role(role_id)
-                await message.author.add_roles(role)
-                if not discord.utils.get(message.author.roles, id=role_id):
+                await message.author.add_roles(role) # A kihívó ID hozzáadása
+                if not discord.utils.get(message.author.roles, id=role_id): # Ha nincs az authornak ilyen role-ja
                     await message.author.add_roles(role)
-                # else:
-                # print('alma')
                 await message.reply('Kihívás elküldve!')
                 await userDM.send(embed=embed, view=view)
 
-        # match parancs
-        if 'match' in message.content:
-            await message.channel.send('Eredmeny')
-
-        if 'debug' in message.content:
-            print(message)
-            print(message.id)
-            print(message.channel, message.channel.id, message.channel.name)
-            print(type(message), type(message.channel), type(message.author), type(message.guild))
-            print(message.content)
-            # message = await message.channel.send("Hello")
-            # await message.create_thread(name="Ping-Pong", auto_archive_duration=60)
-            # print(message.thread.id, message.thread.name, type(message.thread))
-            # await message.channel.send(f'<#{tID}>')
-            print(type(message.channel))
-            print(type(message.author.id))
-
-    if type(message.channel) == discord.threads.Thread:
+    if type(message.channel) == discord.threads.Thread: # Ha a message a pongbot channel-ben van
         if message.content.startswith('ping'):
             if 'datum' in message.content:
                 dbmidtmp1 = str(datetime.date.today()).split('-')
@@ -193,6 +173,5 @@ async def on_message(message):
                     await message.channel.send('Sikeres rögzítés!, a thread 10 másodpercen belül tőrlődik.')
                     time.sleep(10)
                     await thread.delete()
-
 
 client.run(os.getenv('TOKEN'))
