@@ -3,6 +3,7 @@ from discord.ui import Button, View
 import os
 from dotenv import load_dotenv
 import mysql.connector
+import datetime
 
 load_dotenv()
 
@@ -14,8 +15,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # adatbazis csatlakoztatasa
-mydb = mysql.connector.connect(host=os.getenv('HOST'), user=os.getenv('DBU'), password=os.getenv('DBP'),
-                               database=os.getenv('DBN'))
+mydb = mysql.connector.connect(host=os.getenv('HOST'), user=os.getenv('DBU'), password=os.getenv('DBP'),database=os.getenv('DBN'))
 mycursor = mydb.cursor()
 
 # adatok lekerdezese,betoltese memoriaba
@@ -29,7 +29,6 @@ for item in mycursor:
     points.append(item[2])
     coins.append(item[3])
 
-
 # userek felvetele
 class User:
     def __init__(self, dcnev, dcid, pont, coin):
@@ -38,16 +37,13 @@ class User:
         self.pont = pont
         self.coin = coin
 
-
 Users = []
 for i in range(len(names)):
     Users.append(User(names[i], ids[i], points[i], coins[i]))
 
-
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
-
 
 @client.event
 async def on_message(message):
@@ -57,14 +53,14 @@ async def on_message(message):
 
     # ellenorzes h a user benne van-e a db-ban,ha nincs akkor hozzaadja,es a memoriaba is betolti
     if message.content.startswith('ping'):
-        uid = str(message.author.id)
+        uid = message.author.id
         if uid not in ids:
             sql = "INSERT INTO users (dcnev, dcid, pont, coin) VALUES (%s, %s, %s, %s)"
             val = (message.author.name, message.author.id, 0, 0)
             mycursor.execute(sql, val)
             mydb.commit()
             names.append(message.author.name)
-            ids.append(str(message.author.id))
+            ids.append(message.author.id)
             points.append(0)
             coins.append(0)
             Users.append(User(names[len(names) - 1], ids[len(names) - 1], points[len(names) - 1], coins[len(names) - 1]))
@@ -109,15 +105,301 @@ async def on_message(message):
                 view.add_item(acceptb)
                 view.add_item(declineb)
 
-                # await message.channel.send(embed=embed)
                 userDM = await client.fetch_user(Users[i].dcid)
                 dcID1 = message.author.id
                 dcID2 = Users[i].dcid
                 await message.reply('Kihívás elküldve!')
                 await userDM.send(embed=embed, view=view)
 
-        # match parancs
-        if 'match' in message.content:
-            await message.channel.send('Eredmeny')
+        # result parancs
+        if 'result' in message.content:
+            #match id generalasa datum,es az aznapi meccsek alapjan (idopont parancshoz)
+            #dbmidtmp1=str(datetime.date.today()).split('-')
+            #dbmidtmp2=f"{str(dbmidtmp1[0])[2:]}{dbmidtmp1[1]}{dbmidtmp1[2]}"
+            #mycursor.execute('select count(id) from matches where id like "'+dbmidtmp2+'%"')
+            #for item in mycursor:
+            #    i=item
+            #j=i[0]
+            #j+=1
+            #dbmid=f"{dbmidtmp2}{j}"
+
+            #feltoltes a db-be
+            #sql = "INSERT INTO matches (id,player_1,player_2, gyoztes, vesztes, eredmeny) VALUES (%s, %s, %s, %s, %s, %s)"
+            #val = (dbmid, Users[0].dcid, Users[1].dcid,0,0,"11-9")
+            #mycursor.execute(sql, val)
+            #mydb.commit()
+
+            msg=str(message.content).split(' ')
+            mid = msg[2]
+            score= str(msg[3]).split('-')
+            p1s=score[0]
+            p2s=score[1]
+
+            #meccs ell. h letezik-e
+            mycursor.execute('select id from matches')
+            for item in mycursor:
+                i = item
+            if mid not in i:
+                await message.channel.send("Nincs ilyen match ID!")
+            else:
+                mycursor.execute('select eredmeny from matches where id='+mid)
+                for item in mycursor:
+                    vaneres=item[0]
+                if vaneres=='':
+                    mycursor.execute('select player_1,player_2 from matches where id='+mid)
+                    for item in mycursor:
+                        players=item
+                    if int(players[0]) == message.author.id or int(players[1]) == message.author.id:
+                        for item in Users:
+                            if item.dcid==int(players[0]):
+                                player_1=item.dcnev
+                            if item.dcid==int(players[1]):
+                                player_2=item.dcnev
+
+                        matchEmbed = discord.Embed(title=f"Match rögzítés\tID: {mid}", description="Lejátszott meccs eredményének bevitele", color=0xfc0398)
+                        matchEmbed.add_field(name="Player 1", value=f"```{p1s}```", inline=True)
+                        matchEmbed.add_field(name="Player 2", value=f"```{p2s}```", inline=True)
+                        matchEmbed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1002233930264608858/1004043886999638076/scoreboard.png")
+                        bo3b = Button(label="BO3", style=discord.ButtonStyle.grey, custom_id="bo3")
+                        p1 = Button(label=f"{player_1}", custom_id="play1")
+                        p2 = Button(label=f"{player_2}", custom_id="play2")
+                        sendb = Button(label="Send", style=discord.ButtonStyle.primary, custom_id="send")
+
+                        view = View()
+                        view.add_item(bo3b)
+                        view.add_item(p1)
+                        view.add_item(p2)
+                        view.add_item(sendb)
+
+                        async def bo3s(interaction):
+                            if bo3b.style == discord.ButtonStyle.grey:
+                                bo3b.style = discord.ButtonStyle.green
+                            else:
+                                bo3b.style = discord.ButtonStyle.grey
+                            await interaction.response.edit_message(view=view)
+
+                        async def winnerselect1(interaction):
+                            if p1.style == discord.ButtonStyle.grey:
+                                p1.style = discord.ButtonStyle.green
+                                p1.emoji = "🥇"
+                                p2.style = discord.ButtonStyle.blurple
+                                p2.emoji = "🥈"
+                            elif p1.style == discord.ButtonStyle.blurple:
+                                p1.style = discord.ButtonStyle.green
+                                p1.emoji = "🥇"
+                                p2.style = discord.ButtonStyle.blurple
+                                p2.emoji = "🥈"
+                            await interaction.response.edit_message(view=view)
+
+                        async def winnerselect2(interaction):
+                            if p2.style == discord.ButtonStyle.grey:
+                                p2.style = discord.ButtonStyle.green
+                                p2.emoji = "🥇"
+                                p1.style = discord.ButtonStyle.blurple
+                                p1.emoji = "🥈"
+                            elif p2.style == discord.ButtonStyle.blurple:
+                                p2.style = discord.ButtonStyle.green
+                                p2.emoji = "🥇"
+                                p1.style = discord.ButtonStyle.blurple
+                                p1.emoji = "🥈"
+                            await interaction.response.edit_message(view=view)
+
+                        async def submit(interaction):
+                            bo3b.disabled = True
+                            p1.disabled = True
+                            p2.disabled = True
+
+                            if p1.style == discord.ButtonStyle.green:
+                                sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
+                                val = (players[0],players[1],msg[3],mid)
+                                mycursor.execute(sql, val)
+                                mydb.commit()
+                            elif p2.style == discord.ButtonStyle.green:
+                                sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
+                                val = (players[1], players[0], msg[3], mid)
+                                mycursor.execute(sql, val)
+                                mydb.commit()
+                            if bo3b.style == discord.ButtonStyle.green:
+                                return
+                            await interaction.response.edit_message(view=view)
+
+                        bo3b.callback = bo3s
+                        p1.callback = winnerselect1
+                        p2.callback = winnerselect2
+                        sendb.callback = submit
+
+                        await message.channel.send(embed=matchEmbed, view=view)
+                    else:
+                        await message.reply("Nincs jogosultságod, mivel ez nem a te meccsed volt!")
+                else:
+                    await message.reply("Ehhez a meccshez már megadták az eredményt, ha módosítani szeretnél akkor az 'edit' parancsot használdd!")
+
+        # edit parancs
+        if 'edit' in message.content:
+            # beirt parancs szetbontasa
+            msg = str(message.content).split(' ')
+            mid = msg[2]
+            score = str(msg[3]).split('-')
+            p1s = score[0]
+            p2s = score[1]
+
+            # meccs ell. h letezik-e
+            mycursor.execute('select id from matches')
+            for item in mycursor:
+                i = item
+            if mid not in i:
+                await message.channel.send("Nincs ilyen match ID!")
+            else:
+                #meccs jatekosainak lekerese
+                mycursor.execute('select player_1,player_2 from matches where id=' + mid)
+                playerids=[]
+                players=[]
+                for item in mycursor:
+                    playerids.append(int(item[0]))
+                    playerids.append(int(item[1]))
+                for item in Users:
+                    if item.dcid==message.author.id:
+                        player_1=item
+                    if item.dcid in playerids:
+                        if item.dcid!=message.author.id:
+                            player_2=item
+
+                # kerelmi embed letrehozasa
+                embed = discord.Embed(title="Módosítási kérelem", color=0x020053, description=f'<@{player_1.dcid}> módosítani szeretné, a ID: {mid} meccset!')
+                embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+
+                # kerelmi embed gombjainak letrehozasa
+                acceptb = Button(label="Accept", style=discord.ButtonStyle.green, custom_id="acceptb")
+                declineb = Button(label="Decline", style=discord.ButtonStyle.red, custom_id="declineb")
+
+                async def accept(interaction):
+                    acceptb.disabled = True
+                    acceptb.label = "Accepted"
+                    view.remove_item(declineb)
+                    await interaction.response.edit_message(view=view)
+                    userDM = await client.fetch_user(player_1.dcid)
+                    embed = discord.Embed(title='Módosítási kérelem elfogadva!', color=0x025300,
+                                          description=f'<@{player_2.dcid}> elfogadta a kérelmet!')
+                    embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+                    await userDM.send(embed=embed)
+                    matchEmbed = discord.Embed(title=f"Match módosítása\tID: {mid}", description="Lejátszott meccs eredményének módosítása", color=0x5865F2)
+                    matchEmbed.add_field(name="Player 1", value=f"```{p1s}```", inline=True)
+                    matchEmbed.add_field(name="Player 2", value=f"```{p2s}```", inline=True)
+                    matchEmbed.set_thumbnail(url="https://img.icons8.com/ios-glyphs/30/FFFFFF/edit--v1.png")
+                    bo3b = Button(label="BO3", style=discord.ButtonStyle.grey, custom_id="bo3")
+                    p1 = Button(label=f"{player_1.dcnev}", custom_id="play1")
+                    players.append(player_1.dcid)
+                    p2 = Button(label=f"{player_2.dcnev}", custom_id="play2")
+                    players.append(player_2.dcid)
+                    sendb = Button(label="Send", style=discord.ButtonStyle.primary, custom_id="send")
+
+                    view2 = View()
+                    view2.add_item(bo3b)
+                    view2.add_item(p1)
+                    view2.add_item(p2)
+                    view2.add_item(sendb)
+
+                    async def bo3s(interaction):
+                        if bo3b.style == discord.ButtonStyle.grey:
+                            bo3b.style = discord.ButtonStyle.green
+                        else:
+                            bo3b.style = discord.ButtonStyle.grey
+                        await interaction.response.edit_message(view=view2)
+
+                    async def winnerselect1(interaction):
+                        if p1.style == discord.ButtonStyle.grey:
+                            p1.style = discord.ButtonStyle.green
+                            p1.emoji = "🥇"
+                            p2.style = discord.ButtonStyle.blurple
+                            p2.emoji = "🥈"
+                        elif p1.style == discord.ButtonStyle.blurple:
+                            p1.style = discord.ButtonStyle.green
+                            p1.emoji = "🥇"
+                            p2.style = discord.ButtonStyle.blurple
+                            p2.emoji = "🥈"
+                        await interaction.response.edit_message(view=view2)
+
+                    async def winnerselect2(interaction):
+                        if p2.style == discord.ButtonStyle.grey:
+                            p2.style = discord.ButtonStyle.green
+                            p2.emoji = "🥇"
+                            p1.style = discord.ButtonStyle.blurple
+                            p1.emoji = "🥈"
+                        elif p2.style == discord.ButtonStyle.blurple:
+                            p2.style = discord.ButtonStyle.green
+                            p2.emoji = "🥇"
+                            p1.style = discord.ButtonStyle.blurple
+                            p1.emoji = "🥈"
+                        await interaction.response.edit_message(view=view2)
+
+                    async def submit(interaction):
+                        bo3b.disabled = True
+                        p1.disabled = True
+                        p2.disabled = True
+
+                        if p1.style == discord.ButtonStyle.green:
+                            sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
+                            val = (players[0], players[1], msg[3], mid)
+                            mycursor.execute(sql, val)
+                            mydb.commit()
+                        elif p2.style == discord.ButtonStyle.green:
+                            sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
+                            val = (players[1], players[0], msg[3], mid)
+                            mycursor.execute(sql, val)
+                            mydb.commit()
+                        if bo3b.style == discord.ButtonStyle.green:
+                            return
+                        await interaction.response.edit_message(view=view2)
+
+                    bo3b.callback = bo3s
+                    p1.callback = winnerselect1
+                    p2.callback = winnerselect2
+                    sendb.callback = submit
+                    await message.channel.send(embed=matchEmbed, view=view2)  # !!
+
+                async def decline(interaction):
+                    declineb.disabled = True
+                    declineb.label = "Declined"
+                    view.remove_item(acceptb)
+                    await interaction.response.edit_message(view=view)
+                    userDM = await client.fetch_user(player_1.dcid)
+                    embed = discord.Embed(title='Módosítási kérelem elutasítva!', color=0x530200,
+                                          description=f'<@{player_2.dcid}> nem fogadta el a kérelmet!')
+                    embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+                    await userDM.send(embed=embed)
+
+                acceptb.callback = accept
+                declineb.callback = decline
+
+                view = View()
+                view.add_item(acceptb)
+                view.add_item(declineb)
+
+                userDM = await client.fetch_user(player_2.dcid)
+                await message.reply('Módosítási kérelem elküldve!')
+                await userDM.send(embed=embed, view=view)
+
+        # help parancs
+        if 'help' in message.content:
+            embedVar = discord.Embed(title="Help", description="PongBot parancsok", color=0xffffff)
+            embedVar.add_field(name="`ping kihiv {username}`", value="Kihívja a kért játékost", inline=False)
+            embedVar.add_field(name="`ping result {matchID} {sco-re}`", value="A megadott meccshez lehet adatokat felvinni (eredmény,győztes,vesztes,bo3 volt-e)\nA gombokon lévő két player közül "
+                                                                              "ki kell választani a győztest, megadhatjuk azt is h a meccs BO3 volt a BO3 gomb segítségével, majd érvényesíteni kell "
+                                                                              "a send gombbal",inline=False)
+            embedVar.add_field(name="`ping edit {matchID} {sco-re}`", value="Meccs adat módosítási kérelmet küld", inline=False)
+            embedVar.add_field(name="`ping features`", value="Kiírja a PongBot várható újdonságait ", inline=False)
+            embedVar.set_footer(text="Egyes parancsok használatba vétele előtt lehetséges hogy kell legalább egy 'ping' parancs használata")
+            embedVar.set_thumbnail(url="https://cdn.pixabay.com/photo/2017/03/17/05/20/info-2150938_960_720.png")
+            await message.channel.send(embed=embedVar)
+
+        # features parancs
+        if 'features' in message.content:
+            embedVar = discord.Embed(title="Features", description="PongBot várható parancsai", color=0xffff00)
+            embedVar.add_field(name="`ping leaderboard`", value="Kiírja a játékosok leaderboard-ját", inline=False)
+            embedVar.add_field(name="`ping datum {helyszín} {DateTime}`", value="A mecss helyszínének,dátumának bevitele, google remindert készít", inline=False)
+            embedVar.add_field(name="`ping history`", value="Kiírja az eddig lejátszott meccseidet", inline=False)
+            embedVar.add_field(name="`ping pending`", value="Kiírja a rád váró meccseket", inline=False)
+            embedVar.set_thumbnail(url="https://cdn.discordapp.com/attachments/1002233930264608858/1004025300042141826/feature.png")
+            await message.channel.send(embed=embedVar)
 
 client.run(os.getenv('TOKEN'))
