@@ -2,8 +2,9 @@ import discord
 from discord.ui import Button, View
 import os
 from dotenv import load_dotenv
-import mysql.connector
 import datetime
+import mysql.connector
+import time
 
 load_dotenv()
 
@@ -11,11 +12,13 @@ load_dotenv()
 # pycord-hoz
 intents = discord.Intents.default()
 intents.message_content = True
-
+intents.members = True
+intents.guilds = True
 client = discord.Client(intents=intents)
 
 # adatbazis csatlakoztatasa
-mydb = mysql.connector.connect(host=os.getenv('HOST'), user=os.getenv('DBU'), password=os.getenv('DBP'),database=os.getenv('DBN'))
+mydb = mysql.connector.connect(host=os.getenv('HOST'), user=os.getenv('DBU'), password=os.getenv('DBP'), database=os.getenv('DBN'))
+
 mycursor = mydb.cursor()
 
 # adatok lekerdezese,betoltese memoriaba
@@ -47,9 +50,11 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    global dcID1, dcID2, tID, channel
+    guild = message.guild
+
     if message.author == client.user:
         return
-    global dcID1, dcID2, dcAuthor1, dcAuthor2
 
     # ellenorzes h a user benne van-e a db-ban,ha nincs akkor hozzaadja,es a memoriaba is betolti
     if message.content.startswith('ping'):
@@ -71,6 +76,7 @@ async def on_message(message):
             if nev in names:
                 i = names.index(nev)  # memoriaban levo userek szama (idx - Zolinak ;) )
                 embed = discord.Embed(title="Kihívtak!", color=0x020053, description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
+                dcID2 = Users[i].dcid
                 embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
 
                 acceptb = Button(label="Accept", style=discord.ButtonStyle.green, custom_id="acceptb")
@@ -80,11 +86,26 @@ async def on_message(message):
                     acceptb.disabled = True
                     acceptb.label = "Accepted"
                     view.remove_item(declineb)
+
+                    # Thread létrehozása
+                    channel = client.get_channel(1004010609509150771)  # channel id here
+                    message = await channel.send(f'<@{dcID1}> VS <@{dcID2}>') # Thread start message
+                    await message.create_thread(name="Ping-Pong", auto_archive_duration=60) # Thread létrehozása
+                    tid = message.thread.id # Thread ID
+
                     await interaction.response.edit_message(view=view)
-                    userDM = await client.fetch_user(dcID1)
+                    userDM = await client.fetch_user(dcID1) # user konvertálás (címzett)
+                    authorNev = await client.fetch_user(dcID2) # user konvertálás (author)
                     embed = discord.Embed(title='Kihívás elfogadva!', color=0x025300,
                                           description=f'<@{dcID2}> elfogadta a kihívást!')
                     embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+
+                    guild_id = guild.id # server ID lekérdezés
+                    server = client.get_guild(guild_id)
+                    role_id = 1004009190215405619  # Kihívott rang ID
+                    role = discord.utils.get(server.roles, id=role_id) # server role lekérdezés
+                    member = await guild.fetch_member(dcID2) # member konvertálás
+                    await member.add_roles(role) # role kiosztása
                     await userDM.send(embed=embed)
 
                 async def decline(interaction):
@@ -93,9 +114,13 @@ async def on_message(message):
                     view.remove_item(acceptb)
                     await interaction.response.edit_message(view=view)
                     userDM = await client.fetch_user(dcID1)
-                    embed = discord.Embed(title='Kihívás elutasítva!', color=0x530200,
-                                          description=f'<@{dcID2}> nem fogadta el a kihívást!')
+                    authorNev = await client.fetch_user(dcID2) # user konvertálás (author)
+                    embed = discord.Embed(title='Kihívás elutasítva!', color=0x530200, description=f'<@{dcID2}> nem fogadta el a kihívást!')
                     embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+                    server = client.get_guild(guild_id)
+                    role_id = 1004010127520706590  # Kihívó ID
+                    role2 = discord.utils.get(server.roles, id=role_id)
+                    await message.author.remove_roles(role2) # leveszi a kihívó role-t
                     await userDM.send(embed=embed)
 
                 acceptb.callback = accept
@@ -104,10 +129,16 @@ async def on_message(message):
                 view = View()
                 view.add_item(acceptb)
                 view.add_item(declineb)
-
+                
                 userDM = await client.fetch_user(Users[i].dcid)
                 dcID1 = message.author.id
-                dcID2 = Users[i].dcid
+
+                guild_id = guild.id
+                role_id = 1004010127520706590  # Kihívó ID
+                role = guild.get_role(role_id)
+                await message.author.add_roles(role) # A kihívó ID hozzáadása
+                if not discord.utils.get(message.author.roles, id=role_id): # Ha nincs az authornak ilyen role-ja
+                    await message.author.add_roles(role)
                 await message.reply('Kihívás elküldve!')
                 await userDM.send(embed=embed, view=view)
 
@@ -401,5 +432,36 @@ async def on_message(message):
             embedVar.add_field(name="`ping pending`", value="Kiírja a rád váró meccseket", inline=False)
             embedVar.set_thumbnail(url="https://cdn.discordapp.com/attachments/1002233930264608858/1004025300042141826/feature.png")
             await message.channel.send(embed=embedVar)
+
+    if type(message.channel) == discord.threads.Thread: # Ha a message a pongbot channel-ben van
+        if message.content.startswith('ping'):
+            if 'datum' in message.content:
+                dbmidtmp1 = str(datetime.date.today()).split('-')
+                dbmidtmp2 = f"{str(dbmidtmp1[0])[2:]}{dbmidtmp1[1]}{dbmidtmp1[2]}"
+                #datumT = str(message.content).split()
+                mycursor.execute('select count(id) from matches where id like "' + dbmidtmp2 + '%"')
+
+                for item in mycursor:
+                    i = item
+
+                j = i[0]
+                j += 1
+                dbmid = f"{dbmidtmp2}{j}"
+
+                # https://decomaan.github.io/google-calendar-link-generator/
+                # https://www.google.com/calendar/render?action=TEMPLATE&text=Ping+Pong&details=Hell%C3%B3&location=%C5%B0r&dates=20220808T201100Z%2F20220823T201100Z
+
+                #calendarTitle = 'Ping-Pong'
+                #startDate = datumT[2]
+                #endDate = datumT[3]
+                #location = datumT[4]
+                await message.channel.send(dbmid)
+                print(message.channel.id, message.thread)
+
+                if 'rogzit' in message.content:
+                    thread = client.get_channel(message.channel.id)
+                    await message.channel.send('Sikeres rögzítés!, a thread 10 másodpercen belül tőrlődik.')
+                    time.sleep(10)
+                    await thread.delete()
 
 client.run(os.getenv('TOKEN'))
