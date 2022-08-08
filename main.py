@@ -50,7 +50,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global dcID1, dcID2, tID, channel
+    global dcID1, dcID2, tID, channel, bo3
     guild = message.guild
 
     if message.author == client.user:
@@ -240,18 +240,21 @@ async def on_message(message):
                             p1.disabled = True
                             p2.disabled = True
 
+                            if bo3b.style == discord.ButtonStyle.green:
+                                bo3 = True
+                            else:
+                                bo3 = False
+
                             if p1.style == discord.ButtonStyle.green:
-                                sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
-                                val = (players[0],players[1],msg[3],mid)
+                                sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s,bo3=%s where id=%s"
+                                val = (players[0], players[1], msg[3], bo3, mid)
                                 mycursor.execute(sql, val)
                                 mydb.commit()
                             elif p2.style == discord.ButtonStyle.green:
-                                sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
-                                val = (players[1], players[0], msg[3], mid)
+                                sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s,bo3=%s where id=%s"
+                                val = (players[1], players[0], msg[3], bo3, mid)
                                 mycursor.execute(sql, val)
                                 mydb.commit()
-                            if bo3b.style == discord.ButtonStyle.green:
-                                return
                             await interaction.response.edit_message(view=view)
 
                         bo3b.callback = bo3s
@@ -368,18 +371,21 @@ async def on_message(message):
                         p1.disabled = True
                         p2.disabled = True
 
+                        if bo3b.style==discord.ButtonStyle.green:
+                            bo3=True
+                        else:
+                            bo3=False
+
                         if p1.style == discord.ButtonStyle.green:
-                            sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
-                            val = (players[0], players[1], msg[3], mid)
+                            sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s,bo3=%s where id=%s"
+                            val = (players[0], players[1], msg[3], bo3, mid)
                             mycursor.execute(sql, val)
                             mydb.commit()
                         elif p2.style == discord.ButtonStyle.green:
-                            sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s where id=%s"
-                            val = (players[1], players[0], msg[3], mid)
+                            sql = "UPDATE matches set gyoztes=%s,vesztes=%s,eredmeny=%s,bo3=%s where id=%s"
+                            val = (players[1], players[0], msg[3], bo3, mid)
                             mycursor.execute(sql, val)
                             mydb.commit()
-                        if bo3b.style == discord.ButtonStyle.green:
-                            return
                         await interaction.response.edit_message(view=view2)
 
                     bo3b.callback = bo3s
