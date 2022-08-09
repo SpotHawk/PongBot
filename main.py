@@ -419,6 +419,8 @@ async def on_message(message):
                                                                               "a send gombbal",inline=False)
             embedVar.add_field(name="`ping edit {matchID} {sco-re}`", value="Meccs adat módosítási kérelmet küld", inline=False)
             embedVar.add_field(name="`ping features`", value="Kiírja a PongBot várható újdonságait ", inline=False)
+            embedVar.add_field(name="`ping datum {varos_cim} {evhonapnap-oraperc}`", value="Meccs időpont megadása", inline=False)
+            embedVar.add_field(name="`ping datum rogzit {matchID}`", value="Megbeszélt meccs időpont mentése", inline=False)
             embedVar.set_footer(text="Egyes parancsok használatba vétele előtt lehetséges hogy kell legalább egy 'ping' parancs használata")
             embedVar.set_thumbnail(url="https://cdn.pixabay.com/photo/2017/03/17/05/20/info-2150938_960_720.png")
             await message.channel.send(embed=embedVar)
@@ -430,15 +432,20 @@ async def on_message(message):
             embedVar.add_field(name="`ping datum {helyszín} {DateTime}`", value="A mecss helyszínének,dátumának bevitele, google remindert készít", inline=False)
             embedVar.add_field(name="`ping history`", value="Kiírja az eddig lejátszott meccseidet", inline=False)
             embedVar.add_field(name="`ping pending`", value="Kiírja a rád váró meccseket", inline=False)
+            embedVar.add_field(name="`ping datum edit {matchID} [hely|ido] {új hely|új idő}`", value="Már feltöltött meccs módosítása", inline=False)
+            embedVar.add_field(name="`ping datum delete {matchID}`", value="Már feltöltött meccs törlése", inline=False)
             embedVar.set_thumbnail(url="https://cdn.discordapp.com/attachments/1002233930264608858/1004025300042141826/feature.png")
             await message.channel.send(embed=embedVar)
+
+        if 'debug' in message.content:
+            pass
 
     if type(message.channel) == discord.threads.Thread: # Ha a message a pongbot channel-ben van
         if message.content.startswith('ping'):
             if 'datum' in message.content:
                 dbmidtmp1 = str(datetime.date.today()).split('-')
                 dbmidtmp2 = f"{str(dbmidtmp1[0])[2:]}{dbmidtmp1[1]}{dbmidtmp1[2]}"
-                #datumT = str(message.content).split()
+                datumT = str(message.content).split()
                 mycursor.execute('select count(id) from matches where id like "' + dbmidtmp2 + '%"')
 
                 for item in mycursor:
@@ -449,16 +456,51 @@ async def on_message(message):
                 dbmid = f"{dbmidtmp2}{j}"
 
                 # https://decomaan.github.io/google-calendar-link-generator/
-                # https://www.google.com/calendar/render?action=TEMPLATE&text=Ping+Pong&details=Hell%C3%B3&location=%C5%B0r&dates=20220808T201100Z%2F20220823T201100Z
-
-                #calendarTitle = 'Ping-Pong'
-                #startDate = datumT[2]
-                #endDate = datumT[3]
-                #location = datumT[4]
-                await message.channel.send(dbmid)
+                # https://www.google.com/calendar/render?action=TEMPLATE&dates=20220809T150000Z%2Fundefined
+                # dates=20220909T183900Z
+                # ping datum hely 20220808-1211
+                # https://www.google.com/calendar/render?action=TEMPLATE&text=hello&details=hello&location=hello&dates=20220809T185100Z%2F20220810T185100Z
+                content = str(message.content).split()
+                print(content)
+                reminderLocation = content[2]
+                print(reminderLocation)
+                reminderLocation = reminderLocation.replace('_', '+')
+                print(reminderLocation)
+                dateT = content[3].split('-')
+                print(dateT)
+                startDate, startDateTime = dateT[0], dateT[1]
+                startDateTime = int(startDateTime) - 200
+                if str(startDateTime).endswith('0'):
+                    startDateTime = startDateTime - 5
+                print(startDate)
+                print(startDateTime)
+                reminderTitle = 'Ping+Pong'
+                reminderDetail = 'Egy+kis+ping+pong'
+                link = 'https://www.google.com/calendar/render?action=TEMPLATE&text=' + str(reminderTitle) + '&details=' + str(reminderDetail) + '&location=' \
+                       + str(reminderLocation) + '&dates=' + str(startDate) + 'T' + str(startDateTime) + '00Z%2F' + str(startDate) + 'T215900Z'
+                print(link)
+                datumEV, datumHonap, datumNap = startDate[:3], startDate[4:5], startDate[5:6]
+                datumKiir = datumEV+'.'+datumHonap+'.'+datumNap
+                embed = discord.Embed(title="Időpont rögzítve", description=f"ID: {dbmid}", color=0x0030c2)
+                embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1003764337590145224/1006582187098919084/calendar.png")
+                embed.add_field(name="Dátum", value=f"{datumKiir}", inline=False)
+                embed.add_field(name="Google reminder", value=f"{link}", inline=True)
+                embed.set_footer(text="Jó játékot!")
+                await message.channel.send(embed=embed)
+                print(link)
+                print('https://www.google.com/calendar/render?action=TEMPLATE&text=Ping+Pong&details=Egy+kis+ping+pong&location=Valahol&dates=20220815T224100Z%2F20220816T224100Z')
                 print(message.channel.id, message.thread)
+                print(startDate[9:])
 
-                if 'rogzit' in message.content:
+            if 'rogzit' in message.content:
+                sql = "SELECT matches.id FROM matches"
+                mycursor.execute(sql)
+                matchID = mycursor.fetchall()
+                if dbmid not in matchID:
+                    update = "INSERT INTO matches (id, player_1, player_2) VALUES (%s, %s)"
+                    val = (dbmid, message.author.id)
+                    mycursor.execute(update, val)
+                    mydb.commit()
                     thread = client.get_channel(message.channel.id)
                     await message.channel.send('Sikeres rögzítés!, a thread 10 másodpercen belül tőrlődik.')
                     time.sleep(10)
