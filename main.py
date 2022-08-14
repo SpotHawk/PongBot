@@ -50,7 +50,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global dcID1, dcID2, tID, channel, bo3
+    global dcID1, dcID2, tID, channel, bo3, i
     guild = message.guild
 
     if message.author == client.user:
@@ -176,7 +176,7 @@ async def on_message(message):
                 mycursor.execute('select eredmeny from matches where id='+mid)
                 for item in mycursor:
                     vaneres=item[0]
-                if vaneres=='':
+                if vaneres==None:
                     mycursor.execute('select player_1,player_2 from matches where id='+mid)
                     for item in mycursor:
                         players=item
@@ -423,7 +423,8 @@ async def on_message(message):
             embedVar.add_field(name="`ping result {matchID} {sco-re}`", value="A megadott meccshez lehet adatokat felvinni (eredmény,győztes,vesztes,bo3 volt-e)\nA gombokon lévő két player közül "
                                                                               "ki kell választani a győztest, megadhatjuk azt is h a meccs BO3 volt a BO3 gomb segítségével, majd érvényesíteni kell "
                                                                               "a send gombbal",inline=False)
-            embedVar.add_field(name="`ping edit {matchID} {sco-re}`", value="Meccs adat módosítási kérelmet küld", inline=False)
+            embedVar.add_field(name="`ping edit {matchID} {sco-re}`", value="Meccsadat módosítási kérelmet küld", inline=False)
+            embedVar.add_field(name="`ping history`", value="Kiírja az eddig lejátszott meccseid adatait", inline=False)
             embedVar.add_field(name="`ping features`", value="Kiírja a PongBot várható újdonságait ", inline=False)
             embedVar.set_footer(text="Egyes parancsok használatba vétele előtt lehetséges hogy kell legalább egy 'ping' parancs használata")
             embedVar.set_thumbnail(url="https://cdn.pixabay.com/photo/2017/03/17/05/20/info-2150938_960_720.png")
@@ -434,10 +435,131 @@ async def on_message(message):
             embedVar = discord.Embed(title="Features", description="PongBot várható parancsai", color=0xffff00)
             embedVar.add_field(name="`ping leaderboard`", value="Kiírja a játékosok leaderboard-ját", inline=False)
             embedVar.add_field(name="`ping datum {helyszín} {DateTime}`", value="A mecss helyszínének,dátumának bevitele, google remindert készít", inline=False)
-            embedVar.add_field(name="`ping history`", value="Kiírja az eddig lejátszott meccseidet", inline=False)
             embedVar.add_field(name="`ping pending`", value="Kiírja a rád váró meccseket", inline=False)
             embedVar.set_thumbnail(url="https://cdn.discordapp.com/attachments/1002233930264608858/1004025300042141826/feature.png")
             await message.channel.send(embed=embedVar)
+
+        # history parancs
+        if 'history' in message.content:
+            mycursor.execute('select matches.* from matches where eredmeny is not null and player_1='+str(message.author.id)+' or player_2='+str(message.author.id))
+            class Match:
+                def __init__(self,id,p1,p2,w,l,s,d,b):
+                    self.id=id
+                    self.p1=p1
+                    self.p2=p2
+                    self.w=w
+                    self.l=l
+                    self.s=s
+                    self.d=d
+                    self.b=b
+
+            meccsek=[]
+            winner=None
+            loser=None
+            backb = Button(label="", style=discord.ButtonStyle.blurple, emoji="◀️")
+            nextb = Button(label="", style=discord.ButtonStyle.blurple, emoji="▶️")
+            i=0
+
+            if i==0 and len(meccsek)==1:
+                nextb.disabled=True
+                backb.disabled=True
+            elif i==0:
+                backb.disabled=True
+
+            view = View()
+            view.add_item(backb)
+            view.add_item(nextb)
+
+            for item in mycursor:
+                meccsek.append(Match(item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7]))
+            # for item in meccsek:
+            embedVar = discord.Embed(title=f"Match history\t ID: {meccsek[i].id}", description=message.author.name + " lejátszott meccsei",
+                                         color=0xf76700)
+            for user in Users:
+                if int(meccsek[i].w)==user.dcid:
+                    winner=user.dcnev
+                elif int(meccsek[i].l)==user.dcid:
+                    loser=user.dcnev
+            if meccsek[i].b==0:
+                tp='Simple'
+            else:
+                tp='BO3'
+            embedVar.add_field(name="Match player1", value=winner, inline=True)
+            embedVar.add_field(name="Match player2", value=loser, inline=True)
+            embedVar.add_field(name="Match score", value=meccsek[i].s, inline=True)
+            embedVar.add_field(name="Match winner", value=winner, inline=True)
+            embedVar.add_field(name="Match loser", value=loser, inline=True)
+            embedVar.add_field(name="Match date", value=meccsek[i].d, inline=True)
+            embedVar.add_field(name="Match type", value=tp, inline=True)
+            embedVar.set_footer(text=f"{i+1}/{len(meccsek)}")
+            embedVar.set_thumbnail(
+                    url="https://www.seekpng.com/png/full/781-7815113_history-icon-white-png.png")
+            await message.channel.send(embed=embedVar, view=view)
+
+            async def backe(interaction):
+                nextb.disabled=False
+                global i
+                if i==1:
+                    backb.disabled=True
+                i -= 1
+                for user in Users:
+                    if int(meccsek[i].w) == user.dcid:
+                        winner = user.dcnev
+                    elif int(meccsek[i].l) == user.dcid:
+                         loser = user.dcnev
+
+                if meccsek[i].b == 0:
+                    tp = 'Simple'
+                else:
+                    tp = 'BO3'
+                elomeccs = discord.Embed(title=f"Match history\t ID: {meccsek[i].id}",
+                                             description=message.author.name + " lejátszott meccsei",
+                                             color=0xf76700)
+                elomeccs.add_field(name="Match player1", value=winner, inline=True)
+                elomeccs.add_field(name="Match player2", value=loser, inline=True)
+                elomeccs.add_field(name="Match score", value=meccsek[i].s, inline=True)
+                elomeccs.add_field(name="Match winner", value=winner, inline=True)
+                elomeccs.add_field(name="Match loser", value=loser, inline=True)
+                elomeccs.add_field(name="Match date", value=meccsek[i].d, inline=True)
+                elomeccs.add_field(name="Match type", value=tp, inline=True)
+                elomeccs.set_footer(text=f"{i + 1}/{len(meccsek)}")
+                elomeccs.set_thumbnail(
+                    url="https://www.seekpng.com/png/full/781-7815113_history-icon-white-png.png")
+                await interaction.response.edit_message(embed=elomeccs,view=view)
+
+            async def nexte(interaction):
+                backb.disabled=False
+                global i
+                if i==len(meccsek)-2:
+                    nextb.disabled=True
+                i += 1
+                for user in Users:
+                    if int(meccsek[i].w) == user.dcid:
+                        winner = user.dcnev
+                    elif int(meccsek[i].l) == user.dcid:
+                        loser = user.dcnev
+
+                if meccsek[i].b == 0:
+                    tp = 'Simple'
+                else:
+                    tp = 'BO3'
+                kovmeccs = discord.Embed(title=f"Match history\t ID: {meccsek[i].id}",
+                                             description=message.author.name + " lejátszott meccsei",
+                                             color=0xf76700)
+                kovmeccs.add_field(name="Match player1", value=winner, inline=True)
+                kovmeccs.add_field(name="Match player2", value=loser, inline=True)
+                kovmeccs.add_field(name="Match score", value=meccsek[i].s, inline=True)
+                kovmeccs.add_field(name="Match winner", value=winner, inline=True)
+                kovmeccs.add_field(name="Match loser", value=loser, inline=True)#
+                kovmeccs.add_field(name="Match date", value=meccsek[i].d, inline=True)
+                kovmeccs.add_field(name="Match type", value=tp, inline=True)
+                kovmeccs.set_footer(text=f"{i + 1}/{len(meccsek)}")
+                kovmeccs.set_thumbnail(
+                   url="https://www.seekpng.com/png/full/781-7815113_history-icon-white-png.png")
+                await interaction.response.edit_message(embed=kovmeccs,view=view)
+
+            backb.callback = backe
+            nextb.callback = nexte
 
     if type(message.channel) == discord.threads.Thread: # Ha a message a pongbot channel-ben van
         if message.content.startswith('ping'):
@@ -462,7 +584,6 @@ async def on_message(message):
                 #endDate = datumT[3]
                 #location = datumT[4]
                 await message.channel.send(dbmid)
-                print(message.channel.id, message.thread)
 
                 if 'rogzit' in message.content:
                     thread = client.get_channel(message.channel.id)
