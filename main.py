@@ -144,22 +144,6 @@ async def on_message(message):
 
         # result parancs
         if 'result' in message.content:
-            #match id generalasa datum,es az aznapi meccsek alapjan (idopont parancshoz)
-            #dbmidtmp1=str(datetime.date.today()).split('-')
-            #dbmidtmp2=f"{str(dbmidtmp1[0])[2:]}{dbmidtmp1[1]}{dbmidtmp1[2]}"
-            #mycursor.execute('select count(id) from matches where id like "'+dbmidtmp2+'%"')
-            #for item in mycursor:
-            #    i=item
-            #j=i[0]
-            #j+=1
-            #dbmid=f"{dbmidtmp2}{j}"
-
-            #feltoltes a db-be
-            #sql = "INSERT INTO matches (id,player_1,player_2, gyoztes, vesztes, eredmeny) VALUES (%s, %s, %s, %s, %s, %s)"
-            #val = (dbmid, Users[0].dcid, Users[1].dcid,0,0,"11-9")
-            #mycursor.execute(sql, val)
-            #mydb.commit()
-
             msg=str(message.content).split(' ')
             mid = msg[2]
             score= str(msg[3]).split('-')
