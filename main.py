@@ -72,75 +72,89 @@ async def on_message(message):
 
         # kihiv parancs
         if 'kihiv' in message.content:
-            nev = message.content[11:]
-            if nev in names:
-                i = names.index(nev)  # memoriaban levo userek szama (idx - Zolinak ;) )
-                embed = discord.Embed(title="Kihívtak!", color=0x020053, description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')
-                dcID2 = Users[i].dcid
-                embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+            kihivMessage = str(message.content).split()
+            kihivNev = kihivMessage[2]
+            kihivoDCID = message.author.id
+            kihivoMember = await discord.member(message.author.id)
 
+            if kihivNev in names:
+                i = names.index(kihivNev)  # memoriaban levo userek szama (idx - Zolinak ;) )
+                kihivottDCID = Users[i].dcid
+                userDM = await client.fetch_user(kihivottDCID)
+
+                # Embed
+                kihivasEmbed = discord.Embed(title="Kihívtak!", color=0x020053,
+                                             description=f'<@{message.author.id}> kihívott téged, <@{Users[i].dcid}>')  # Kihívás embed létrehozása
+                kihivasEmbed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
                 acceptb = Button(label="Accept", style=discord.ButtonStyle.green, custom_id="acceptb")
                 declineb = Button(label="Decline", style=discord.ButtonStyle.red, custom_id="declineb")
 
+                # Kihívás elfogadása
                 async def accept(interaction):
                     acceptb.disabled = True
                     acceptb.label = "Accepted"
                     view.remove_item(declineb)
 
+                    # DM válasz küldése
+                    await interaction.response.edit_message(view=view)
+                    kihivottFetch = await client.fetch_user(kihivottDCID)  # user konvertálás (címzett)
+                    kihivoFetch = await client.fetch_user(kihivoDCID)  # user konvertálás (author)
+                    acceptEmbed = discord.Embed(title='Kihívás elfogadva!', color=0x025300,
+                                                description=f'<@{kihivottDCID}> elfogadta a kihívást!')
+                    acceptEmbed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+                    await kihivoFetch.send(embed=acceptEmbed)
+
                     # Thread létrehozása
                     channel = client.get_channel(1004010609509150771)  # channel id here
-                    message = await channel.send(f'<@{dcID1}> VS <@{dcID2}>') # Thread start message
-                    await message.create_thread(name="Ping-Pong", auto_archive_duration=60) # Thread létrehozása
-                    tid = message.thread.id # Thread ID
+                    message = await channel.send(f'<@{kihivoDCID}> VS <@{kihivottDCID}>')  # Thread start message
+                    await message.create_thread(name="Ping-Pong", auto_archive_duration=60)  # Thread létrehozása
+                    tID = message.thread.id  # Thread ID
 
-                    await interaction.response.edit_message(view=view)
-                    userDM = await client.fetch_user(dcID1) # user konvertálás (címzett)
-                    authorNev = await client.fetch_user(dcID2) # user konvertálás (author)
-                    embed = discord.Embed(title='Kihívás elfogadva!', color=0x025300,
-                                          description=f'<@{dcID2}> elfogadta a kihívást!')
-                    embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
-
-                    guild_id = guild.id # server ID lekérdezés
-                    server = client.get_guild(guild_id)
+                    # Role kiosztás
+                    guildID = guild.id  # server ID lekérdezés
+                    server = client.get_guild(guildID)
                     role_id = 1004009190215405619  # Kihívott rang ID
-                    role = discord.utils.get(server.roles, id=role_id) # server role lekérdezés
-                    member = await guild.fetch_member(dcID2) # member konvertálás
-                    await member.add_roles(role) # role kiosztása
-                    await userDM.send(embed=embed)
+                    role = discord.utils.get(server.roles, id=role_id)  # server role lekérdezés
+                    member = await guild.fetch_member(kihivottDCID)  # member konvertálás
+                    await member.add_roles(role)  # role kiosztása
 
+                    role_id = 1004010127520706590  # Kihívó ID
+                    role = discord.utils.get(server.roles, id=role_id)
+                        kihivoMember = await guild.fetch_member(kihivoDCID)
+                    if not discord.utils.get(message.author.roles, id=role_id):  # Ha nincs az authornak ilyen role-ja
+                        await message.author.add_roles(role)
+
+                # Kihívás elutasítása
                 async def decline(interaction):
                     declineb.disabled = True
                     declineb.label = "Declined"
                     view.remove_item(acceptb)
+
+                    # DM válasz elküldése
                     await interaction.response.edit_message(view=view)
-                    userDM = await client.fetch_user(dcID1)
-                    authorNev = await client.fetch_user(dcID2) # user konvertálás (author)
-                    embed = discord.Embed(title='Kihívás elutasítva!', color=0x530200, description=f'<@{dcID2}> nem fogadta el a kihívást!')
-                    embed.set_thumbnail(url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
-                    server = client.get_guild(guild_id)
+                    kihivottFetch = await client.fetch_user(kihivottDCID)  # user konvertálás (címzett)
+                    kihivoFetch = await client.fetch_user(kihivoDCID)  # user konvertálás (author)
+                    declineEmbed = discord.Embed(title='Kihívás elutasítva!', color=0x530200,
+                                                 description=f'<@{kihivottDCID}> nem fogadta el a kihívást!')
+                    declineEmbed.set_thumbnail(
+                        url="https://cdn2.iconfinder.com/data/icons/sport-8/70/ping_pong-512.png")
+
+                    # Role levétel
+                    guildID = guild.id  # server ID lekérdezés
+                    server = client.get_guild(guildID)
                     role_id = 1004010127520706590  # Kihívó ID
                     role2 = discord.utils.get(server.roles, id=role_id)
-                    await message.author.remove_roles(role2) # leveszi a kihívó role-t
-                    await userDM.send(embed=embed)
+                    await message.author.remove_roles(role2)  # leveszi a kihívó role-t
+                    await kihivoFetch.send(embed=declineEmbed)
 
                 acceptb.callback = accept
                 declineb.callback = decline
-
                 view = View()
                 view.add_item(acceptb)
                 view.add_item(declineb)
-                
-                userDM = await client.fetch_user(Users[i].dcid)
-                dcID1 = message.author.id
 
-                guild_id = guild.id
-                role_id = 1004010127520706590  # Kihívó ID
-                role = guild.get_role(role_id)
-                await message.author.add_roles(role) # A kihívó ID hozzáadása
-                if not discord.utils.get(message.author.roles, id=role_id): # Ha nincs az authornak ilyen role-ja
-                    await message.author.add_roles(role)
                 await message.reply('Kihívás elküldve!')
-                await userDM.send(embed=embed, view=view)
+                await userDM.send(embed=kihivasEmbed, view=view)
 
         # result parancs
         if 'result' in message.content:
@@ -422,7 +436,8 @@ async def on_message(message):
             await message.channel.send(embed=embedVar)
 
         if 'debug' in message.content:
-            pass
+            print(type(message.author))
+            print(type(message.author.roles))
 
     if type(message.channel) == discord.threads.Thread: # Ha a message a pongbot channel-ben van
         if message.content.startswith('ping'):
